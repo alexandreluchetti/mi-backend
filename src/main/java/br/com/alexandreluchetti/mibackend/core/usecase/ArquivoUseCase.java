@@ -1,7 +1,7 @@
 package br.com.alexandreluchetti.mibackend.core.usecase;
 
 import br.com.alexandreluchetti.mibackend.core.model.ProgressoResponse;
-import br.com.alexandreluchetti.mibackend.entrypoint.dto.ResultadoResponseDTO;
+import br.com.alexandreluchetti.mibackend.core.model.ResultadoResponse;
 import br.com.alexandreluchetti.mibackend.entrypoint.dto.UploadResponseDTO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -17,5 +17,5 @@ public interface ArquivoUseCase {
 
     ProgressoResponse consultarProgresso(String id);
 
-    ResultadoResponseDTO consultarResultado(String id);
+    ResultadoResponse consultarResultado(String id);
 }

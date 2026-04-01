@@ -1,17 +1,14 @@
 package br.com.alexandreluchetti.mibackend.core.usecase.impl;
 
-import br.com.alexandreluchetti.mibackend.core.model.ProgressoResponse;
+import br.com.alexandreluchetti.mibackend.core.model.*;
 import br.com.alexandreluchetti.mibackend.core.repository.ResumoRepository;
 import br.com.alexandreluchetti.mibackend.core.repository.UploadRepository;
 import br.com.alexandreluchetti.mibackend.core.usecase.ArquivoUseCase;
 import br.com.alexandreluchetti.mibackend.core.usecase.ProcessamentoUseCase;
-import br.com.alexandreluchetti.mibackend.entrypoint.dto.ResultadoResponseDTO;
 import br.com.alexandreluchetti.mibackend.entrypoint.dto.UploadResponseDTO;
 import br.com.alexandreluchetti.mibackend.core.exception.ArquivoInvalidoException;
 import br.com.alexandreluchetti.mibackend.core.exception.ProcessamentoEmAndamentoException;
 import br.com.alexandreluchetti.mibackend.core.exception.UploadNaoEncontradoException;
-import br.com.alexandreluchetti.mibackend.core.model.StatusProcessamento;
-import br.com.alexandreluchetti.mibackend.core.model.Upload;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
@@ -101,7 +98,7 @@ public class ArquivoUseCaseImpl implements ArquivoUseCase {
     }
 
     @Override
-    public ResultadoResponseDTO consultarResultado(String id) {
+    public ResultadoResponse consultarResultado(String id) {
         UUID uploadId = parseUUID(id);
         Upload upload = uploadRepository.findById(uploadId)
                 .orElseThrow(() -> new UploadNaoEncontradoException(id));
@@ -110,12 +107,12 @@ public class ArquivoUseCaseImpl implements ArquivoUseCase {
             throw new ProcessamentoEmAndamentoException();
         }
 
-        List<ResultadoResponseDTO.ResumoItemDTO> resumo = resumoRepository.findByUploadId(uploadId)
+        List<ResumoItem> resumo = resumoRepository.findByUploadId(uploadId)
                 .stream()
-                .map(r -> new ResultadoResponseDTO.ResumoItemDTO(r.getRegistro(), r.getTotal()))
+                .map(r -> new ResumoItem(r.getRegistro(), r.getTotal()))
                 .toList();
 
-        return new ResultadoResponseDTO(upload.getStatus(), resumo);
+        return new ResultadoResponse(upload.getStatus(), resumo);
     }
 
     private UUID parseUUID(String id) {

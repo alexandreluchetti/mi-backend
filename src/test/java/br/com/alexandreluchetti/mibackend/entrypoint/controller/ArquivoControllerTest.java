@@ -2,10 +2,9 @@ package br.com.alexandreluchetti.mibackend.entrypoint.controller;
 
 import br.com.alexandreluchetti.mibackend.config.shared.SecurityConfig;
 import br.com.alexandreluchetti.mibackend.core.model.ProgressoResponse;
-import br.com.alexandreluchetti.mibackend.entrypoint.dto.ProgressoResponseDTO;
-import br.com.alexandreluchetti.mibackend.entrypoint.dto.ResultadoResponseDTO;
+import br.com.alexandreluchetti.mibackend.core.model.ResultadoResponse;
+import br.com.alexandreluchetti.mibackend.core.model.ResumoItem;
 import br.com.alexandreluchetti.mibackend.entrypoint.dto.UploadResponseDTO;
-import br.com.alexandreluchetti.mibackend.entrypoint.controller.ArquivoController;
 import br.com.alexandreluchetti.mibackend.core.exception.ArquivoInvalidoException;
 import br.com.alexandreluchetti.mibackend.core.exception.ProcessamentoEmAndamentoException;
 import br.com.alexandreluchetti.mibackend.core.exception.UploadNaoEncontradoException;
@@ -197,12 +196,12 @@ class ArquivoControllerTest {
         @Test
         @DisplayName("200 – resultado retornado com token CONSULTA e processamento finalizado")
         void deveRetornar200ComResultadoFinalizado() throws Exception {
-            List<ResultadoResponseDTO.ResumoItemDTO> resumo = List.of(
-                    new ResultadoResponseDTO.ResumoItemDTO("0000", 1L),
-                    new ResultadoResponseDTO.ResumoItemDTO("1000", 10L)
+            List<ResumoItem> resumo = List.of(
+                    new ResumoItem("0000", 1L),
+                    new ResumoItem("1000", 10L)
             );
             when(arquivoUseCaseImpl.consultarResultado(UPLOAD_ID.toString()))
-                    .thenReturn(new ResultadoResponseDTO(StatusProcessamento.FINALIZADO_COM_SUCESSO, resumo));
+                    .thenReturn(new ResultadoResponse(StatusProcessamento.FINALIZADO_COM_SUCESSO, resumo));
 
             mockMvc.perform(get("/api/arquivos/{id}/resultado", UPLOAD_ID)
                             .header("Authorization", TOKEN_CONSULTA))
@@ -257,7 +256,7 @@ class ArquivoControllerTest {
         @DisplayName("200 – resultado com lista de resumo vazia quando nenhum registro foi processado")
         void deveRetornar200ComResumoVazio() throws Exception {
             when(arquivoUseCaseImpl.consultarResultado(UPLOAD_ID.toString()))
-                    .thenReturn(new ResultadoResponseDTO(StatusProcessamento.FINALIZADO_COM_SUCESSO, List.of()));
+                    .thenReturn(new ResultadoResponse(StatusProcessamento.FINALIZADO_COM_SUCESSO, List.of()));
 
             mockMvc.perform(get("/api/arquivos/{id}/resultado", UPLOAD_ID)
                             .header("Authorization", TOKEN_CONSULTA))

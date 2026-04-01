@@ -1,19 +1,13 @@
 package br.com.alexandreluchetti.mibackend.core.usecase.impl;
 
-import br.com.alexandreluchetti.mibackend.core.model.ProgressoResponse;
+import br.com.alexandreluchetti.mibackend.core.model.*;
 import br.com.alexandreluchetti.mibackend.core.repository.ResumoRepository;
 import br.com.alexandreluchetti.mibackend.core.repository.UploadRepository;
 import br.com.alexandreluchetti.mibackend.core.usecase.ProcessamentoUseCase;
-import br.com.alexandreluchetti.mibackend.core.usecase.impl.ArquivoUseCaseImpl;
-import br.com.alexandreluchetti.mibackend.entrypoint.dto.ProgressoResponseDTO;
-import br.com.alexandreluchetti.mibackend.entrypoint.dto.ResultadoResponseDTO;
 import br.com.alexandreluchetti.mibackend.entrypoint.dto.UploadResponseDTO;
 import br.com.alexandreluchetti.mibackend.core.exception.ArquivoInvalidoException;
 import br.com.alexandreluchetti.mibackend.core.exception.ProcessamentoEmAndamentoException;
 import br.com.alexandreluchetti.mibackend.core.exception.UploadNaoEncontradoException;
-import br.com.alexandreluchetti.mibackend.core.model.ResumoRegistro;
-import br.com.alexandreluchetti.mibackend.core.model.StatusProcessamento;
-import br.com.alexandreluchetti.mibackend.core.model.Upload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -250,11 +244,11 @@ class ArquivoUseCaseImplTest {
             when(uploadRepository.findById(FIXED_UUID)).thenReturn(Optional.of(upload));
             when(resumoRepository.findByUploadId(FIXED_UUID)).thenReturn(List.of(item1, item2, item3));
 
-            ResultadoResponseDTO dto = arquivoUseCaseImpl.consultarResultado(FIXED_UUID.toString());
+            ResultadoResponse dto = arquivoUseCaseImpl.consultarResultado(FIXED_UUID.toString());
 
-            assertThat(dto.status()).isEqualTo(StatusProcessamento.FINALIZADO_COM_SUCESSO);
-            assertThat(dto.resumo()).hasSize(3);
-            assertThat(dto.resumo()).extracting(ResultadoResponseDTO.ResumoItemDTO::registro)
+            assertThat(dto.getStatus()).isEqualTo(StatusProcessamento.FINALIZADO_COM_SUCESSO);
+            assertThat(dto.getResumo()).hasSize(3);
+            assertThat(dto.getResumo()).extracting(ResumoItem::getRegistro)
                     .containsExactly("0000", "0001", "1000");
         }
 
@@ -269,9 +263,9 @@ class ArquivoUseCaseImplTest {
             when(uploadRepository.findById(FIXED_UUID)).thenReturn(Optional.of(upload));
             when(resumoRepository.findByUploadId(FIXED_UUID)).thenReturn(List.of());
 
-            ResultadoResponseDTO dto = arquivoUseCaseImpl.consultarResultado(FIXED_UUID.toString());
+            ResultadoResponse dto = arquivoUseCaseImpl.consultarResultado(FIXED_UUID.toString());
 
-            assertThat(dto.resumo()).isEmpty();
+            assertThat(dto.getResumo()).isEmpty();
         }
 
         @Test
