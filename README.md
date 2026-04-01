@@ -1,181 +1,112 @@
 # mi-backend – Teste Técnico MaterImperium
 
-API REST em Java 21 + Spring Boot 3.4.4 para upload e processamento de arquivos.
+API REST em Java 21 + Spring Boot 3.4.4 para upload e processamento de arquivos. O projeto inclui segurança (Role-based access), banco de dados com migrações automáticas, cobertura rigorosa de testes conteinerizados e documentação interativa da API.
 
 ---
 
-## Tecnologias
+## Tecnologias e Arquitetura
 
-| Tecnologia | Versão |
+O projeto foi construído pensando em leveza, performance em manipulação de grandes arquivos e facilidade para teste/deploy:
+
+| Tecnologia | Finalidade / Versão |
 |---|---|
-| Java | 21 |
-| Spring Boot | 3.4.4 |
-| Spring Security | (incluso no Boot) |
-| Spring JDBC (JdbcClient) | (incluso no Boot) |
-| PostgreSQL | 16 |
-| Flyway | (incluso no Boot) |
-| Lombok | (incluso no Boot) |
+| **Java** | 21 (Amazon Corretto) |
+| **Spring Boot** | 3.4.4 (Web, Security, JDBC, Validation) |
+| **Banco de Dados** | PostgreSQL 16 |
+| **Migrações (DB)** | Flyway |
+| **Persistência leve** | Spring `JdbcClient` (sem JPA/Hibernate para menor overhead de memória e melhor controle) |
+| **Documentação API** | Swagger / OpenAPI 3 (`springdoc-openapi`) |
+| **Testes e Qualidade** | JUnit 5 + Testcontainers (PostgreSQL) + JaCoCo (>90% de cobertura mínima restrita no build) |
+| **Containerização** | Docker com arquitetura *multi-stage build* nativa |
 
 ---
 
 ## Pré-requisitos
 
-- Java 21+
-- Maven 3.9+
-- Docker e Docker Compose (para subir o PostgreSQL)
+Para rodar a aplicação imediatamente em um ambiente local isolado:
+- **Docker** e **Docker Compose**
+
+*(Não é necessário ter o Java ou Maven instalados nativamente na sua máquina, pois todo o processo de compilação, pacotes e execução foi inteiramente encapsulado nas imagens).*
 
 ---
 
-## Como executar
+## Como executar (Recomendado)
 
-### 1. Subir o banco de dados
-
-```bash
-docker-compose up -d
-```
-
-O PostgreSQL ficará disponível em `localhost:5432` com:
-- **Database:** `mibackend`
-- **User:** `postgres`
-- **Password:** `postgres`
-
-### 2. Executar a aplicação
+Disponibilizamos toda a infraestrutura pronta e já orquestrada. 
+Na raiz do projeto (onde está o arquivo `docker-compose.yml`), simplesmente execute:
 
 ```bash
-./mvnw spring-boot:run
+docker-compose up -d --build
 ```
 
-A aplicação iniciará na porta **8080** e o Flyway criará o schema automaticamente.
+O **Docker Compose** se encarregará de forma assíncrona de:
+1. Provisionar e subir o contêiner do **PostgreSQL** (`mi-backend-postgres`).
+2. Realizar o **build completo e automatizado** da aplicação backend partindo da imagem oficial do Amazon Corretto.
+3. Subir a **API** (`mi-backend-api`) e liberar as portas apenas **após** a saúde (*healthcheck*) do banco de dados estar 100% OK.
+
+A aplicação vai expor a porta **8080** no seu locahost. As tabelas necessárias serão criadas automaticamente na inicialização com a migração do `Flyway` dentro da API.
+
+> **Nota para execução direta via fonte (opcional):**
+> Caso deseje subir o app diretamente via Host (necessita do Java 21 e Maven instalados), suba primeiro somente o DB usando `docker-compose up -d postgres` e rode o projeto com `./mvnw spring-boot:run`.
 
 ---
 
-## Autenticação
+## Documentação Interativa da API (Swagger)
 
-A API usa **Bearer Token** estático. Existem dois tokens (configuráveis em `application.yaml`):
+A API é auto-documentada integrando o visualizador de interface Swagger. Com a aplicação rodando, acesse em qualquer navegador:
 
-| Token | Role | Permissões |
+- **Swagger UI:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- **OpenAPI JSON:** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+Lá é possível validar detalhadamente o schema das rotas, simular autenticações via token, e enviar arquivos fisicamente pela própria tela web para testes ágeis de integração.
+
+---
+
+## Autenticação / Segurança
+
+A API protege suas rotas com autenticação baseada em **Bearer Tokens** estáticos. Cada token concede um *Role* de acesso distinto pre-definido, reforçando a separação de controle (`application.yaml`):
+
+| Token Estático | Role de Segurança | Permissões Mapeadas |
 |---|---|---|
-| `token-envio-secreto` | ENVIO | Upload + Consulta de Progresso |
-| `token-consulta-secreto` | CONSULTA | Consulta de Progresso + Consulta de Resultado |
+| `token-envio-secreto` | **ENVIO** | Autorizado a Enviar Arquivos (`/upload`) + Ver Progresso (`/progresso`) |
+| `token-consulta-secreto` | **CONSULTA** | Autorizado a Ver Progresso (`/progresso`) + Ver Resumo Final (`/resultado`) |
 
-Inclua o header em todas as requisições:
-```
-Authorization: Bearer <token>
-```
+Se for testar por scripts externos de HTTP (`curl` ou Postman etc.), injete no cabeçalho: 
+`Authorization: Bearer <seu-token>`
 
 ---
 
-## Endpoints
+## Testes Automatizados (Garantia de Cobertura)
 
-### POST `/api/arquivos/upload`
-**Role:** ENVIO
+O sistema de testes mescla um comportamento unitário somado a testes de Repositório/Integração através da fantástica biblioteca **Testcontainers**, que levanta uma instância isolada em um *Docker temporário* apenas para passar na esteira de integração validadando query real, e a descartando ao final do runner.
 
-Recebe um arquivo multipart, valida o cabeçalho e inicia o processamento em background.
-
-**Validações do cabeçalho:**
-- Linha 1: deve iniciar com `|0000|017|` **ou** `|0000|006|`
-- Linha 2: deve conter exatamente `|0001|0|`
-
-**Curl:**
+Para ver os relatórios de execução e relatórios de métrica de cobertura:
 ```bash
-curl -X POST http://localhost:8080/api/arquivos/upload \
-  -H "Authorization: Bearer token-envio-secreto" \
-  -F "file=@/caminho/para/arquivo.txt"
+./mvnw clean test
 ```
-
-**Resposta (201 Created):**
-```json
-{ "id": "550e8400-e29b-41d4-a716-446655440000" }
-```
+*(Se atente que na máquina Host isso também exigirá ter daemon de Docker ligado).*
+A execução gera um report de **JaCoCo** (`target/site/jacoco/index.html`) e **qualquer branch que falhe mais de 10% da cobertura de instruções é vetada do Build (Rule de Rate 90%)**.
 
 ---
 
-### GET `/api/arquivos/{id}/progresso`
-**Role:** ENVIO ou CONSULTA
+## Eficiência de Memória & Lógica
 
-Consulta o status do processamento.
+### Regra Técnica de Domínio
+A API é impulsionada para digerir arquivos com um layout customizado. As requisições entram delimitadas por pipes (`|`), capturando a primeira string do fragmento de leitura como "Códigos do Registro". 
 
-**Curl:**
-```bash
-curl http://localhost:8080/api/arquivos/{id}/progresso \
-  -H "Authorization: Bearer token-envio-secreto"
-```
-
-**Resposta (200 OK):**
-```json
-{ "status": "EM_PROCESSAMENTO" }
-```
-
-**Status possíveis:** `EM_PROCESSAMENTO`, `FINALIZADO_COM_SUCESSO`, `FINALIZADO_COM_ERROS`
-
----
-
-### GET `/api/arquivos/{id}/resultado`
-**Role:** CONSULTA
-
-Retorna o resultado do processamento. Se ainda em andamento, retorna 400.
-
-**Curl:**
-```bash
-curl http://localhost:8080/api/arquivos/{id}/resultado \
-  -H "Authorization: Bearer token-consulta-secreto"
-```
-
-**Resposta (200 OK):**
-```json
-{
-  "status": "FINALIZADO_COM_SUCESSO",
-  "resumo": [
-    { "registro": "0000", "total": 1 },
-    { "registro": "0001", "total": 1 },
-    { "registro": "C170", "total": 3 }
-  ]
-}
-```
-
-**Resposta (400 Bad Request – ainda processando):**
-```json
-{ "message": "Arquivo ainda em processamento. Consulte o endpoint de progresso." }
-```
-
----
-
-## Código de Registro
-
-O arquivo é delimitado por `|` (pipe). O **primeiro campo** de cada linha é o "Código do Registro". Exemplo:
-
-```
-|0000|017|EMPRESA XYZ|...
+Exemplo contido num arquivo `dados.txt`:
+```text
+|0000|017|EMPRESA VIRTUAL XYZ|...
 |0001|0|...
-|C170|1|ITEM A|...
+|C170|1|ITEM FISCAL|...
 ```
+O processamento assimila, processa concorrentemente e retorna, quando no estado de sucesso (Status 200 OK da última rota), a sumarização:
+- `0000` → 1 Ocorrência Processada
+- `0001` → 1 Ocorrência Processada
+- `C170` → 1 Ocorrência Processada
 
-Resulta em:
-- `0000` → 1 ocorrência
-- `0001` → 1 ocorrência
-- `C170` → 1 ocorrência
+### Processamento com Footprint Baixo (Leitura Transparente)
+Para evitar corrupção por picos de excesso de heap (*OutOfMemoryError*), o Controller despacha de forma assíncrona o stream para Workers de background pool (`ThreadPoolTaskExecutor`), rodando via `spring-boot-async`.
 
----
-
-## Eficiência de Memória
-
-O processamento é feito via `BufferedReader.lines()` — leitura **linha a linha** sem nunca carregar o arquivo inteiro em memória. Suporta arquivos de até 1 GB com footprint mínimo.
-
----
-
-## Configuração
-
-As configurações estão em `src/main/resources/application.yaml`:
-
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/mibackend
-    username: postgres
-    password: postgres
-
-security:
-  tokens:
-    envio: "token-envio-secreto"
-    consulta: "token-consulta-secreto"
-```
+O motor de digestão roda um algoritmo que faz proxy de stream, baseado em `BufferedReader.lines()`. A rotina **não armazena nem mapeia as seções massivas na memória**.  Ele engole linhas, mapeia os buffers e descarta do scope as strings passadas.
+A arquitetura atesta suporte contínuo para arquivos imensos na margem dos **Gigabytes** usando apenas **poucos Megabytes em sua pegada de RAM.**
