@@ -1,8 +1,8 @@
 package br.com.alexandreluchetti.mibackend.dataprovider.repository;
 
 import br.com.alexandreluchetti.mibackend.core.repository.UploadRepository;
-import br.com.alexandreluchetti.mibackend.model.StatusProcessamento;
-import br.com.alexandreluchetti.mibackend.model.Upload;
+import br.com.alexandreluchetti.mibackend.core.model.StatusProcessamento;
+import br.com.alexandreluchetti.mibackend.core.model.Upload;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 

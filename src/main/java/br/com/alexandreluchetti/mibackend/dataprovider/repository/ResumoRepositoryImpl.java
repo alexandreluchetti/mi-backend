@@ -1,7 +1,7 @@
 package br.com.alexandreluchetti.mibackend.dataprovider.repository;
 
 import br.com.alexandreluchetti.mibackend.core.repository.ResumoRepository;
-import br.com.alexandreluchetti.mibackend.model.ResumoRegistro;
+import br.com.alexandreluchetti.mibackend.core.model.ResumoRegistro;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 

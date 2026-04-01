@@ -1,6 +1,6 @@
 package br.com.alexandreluchetti.mibackend.core.repository;
 
-import br.com.alexandreluchetti.mibackend.model.ResumoRegistro;
+import br.com.alexandreluchetti.mibackend.core.model.ResumoRegistro;
 
 import java.util.List;
 import java.util.Map;

@@ -1,7 +1,7 @@
 package br.com.alexandreluchetti.mibackend.core.repository;
 
-import br.com.alexandreluchetti.mibackend.model.StatusProcessamento;
-import br.com.alexandreluchetti.mibackend.model.Upload;
+import br.com.alexandreluchetti.mibackend.core.model.StatusProcessamento;
+import br.com.alexandreluchetti.mibackend.core.model.Upload;
 
 import java.util.Optional;
 import java.util.UUID;

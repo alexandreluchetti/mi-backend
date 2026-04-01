@@ -1,4 +1,4 @@
-package br.com.alexandreluchetti.mibackend.model;
+package br.com.alexandreluchetti.mibackend.core.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

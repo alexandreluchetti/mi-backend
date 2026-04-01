@@ -10,8 +10,8 @@ import br.com.alexandreluchetti.mibackend.entrypoint.dto.UploadResponseDTO;
 import br.com.alexandreluchetti.mibackend.exception.ArquivoInvalidoException;
 import br.com.alexandreluchetti.mibackend.exception.ProcessamentoEmAndamentoException;
 import br.com.alexandreluchetti.mibackend.exception.UploadNaoEncontradoException;
-import br.com.alexandreluchetti.mibackend.model.StatusProcessamento;
-import br.com.alexandreluchetti.mibackend.model.Upload;
+import br.com.alexandreluchetti.mibackend.core.model.StatusProcessamento;
+import br.com.alexandreluchetti.mibackend.core.model.Upload;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;

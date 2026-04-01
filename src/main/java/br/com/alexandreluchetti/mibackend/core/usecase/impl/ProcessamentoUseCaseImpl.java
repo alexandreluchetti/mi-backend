@@ -3,7 +3,7 @@ package br.com.alexandreluchetti.mibackend.core.usecase.impl;
 import br.com.alexandreluchetti.mibackend.core.repository.ResumoRepository;
 import br.com.alexandreluchetti.mibackend.core.repository.UploadRepository;
 import br.com.alexandreluchetti.mibackend.core.usecase.ProcessamentoUseCase;
-import br.com.alexandreluchetti.mibackend.model.StatusProcessamento;
+import br.com.alexandreluchetti.mibackend.core.model.StatusProcessamento;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
