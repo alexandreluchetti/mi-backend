@@ -1,6 +1,13 @@
 package br.com.alexandreluchetti.mibackend.core.model;
 
-public enum RoleEnum {
+import org.springframework.security.core.GrantedAuthority;
 
-    CONSULTA, ENVIO
+public enum RoleEnum implements GrantedAuthority {
+
+    CONSULTA, ENVIO;
+
+    @Override
+    public String getAuthority() {
+        return "ROLE_" + this.name();
+    }
 }

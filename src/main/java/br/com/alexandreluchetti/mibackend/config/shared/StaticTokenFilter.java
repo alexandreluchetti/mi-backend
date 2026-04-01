@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Value;
 
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -38,10 +37,10 @@ public class StaticTokenFilter extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
             String token = authHeader.substring(BEARER_PREFIX.length()).trim();
-            String role = resolveRole(token);
+            RoleEnum role = resolveRole(token);
 
             if (role != null) {
-                var authorities = List.of(new SimpleGrantedAuthority(role));
+                var authorities = List.of(role);
                 var authentication = new UsernamePasswordAuthenticationToken(token, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
@@ -50,9 +49,9 @@ public class StaticTokenFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private String resolveRole(String token) {
-        if (tokenEnvio.equals(token)) return "ROLE_" + RoleEnum.ENVIO.name();
-        if (tokenConsulta.equals(token)) return "ROLE_" + RoleEnum.CONSULTA.name();
+    private RoleEnum resolveRole(String token) {
+        if (tokenEnvio.equals(token)) return RoleEnum.ENVIO;
+        if (tokenConsulta.equals(token)) return RoleEnum.CONSULTA;
         return null;
     }
 }
