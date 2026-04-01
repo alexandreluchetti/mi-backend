@@ -4,7 +4,6 @@ import br.com.alexandreluchetti.mibackend.core.model.*;
 import br.com.alexandreluchetti.mibackend.core.repository.ResumoRepository;
 import br.com.alexandreluchetti.mibackend.core.repository.UploadRepository;
 import br.com.alexandreluchetti.mibackend.core.usecase.ProcessamentoUseCase;
-import br.com.alexandreluchetti.mibackend.entrypoint.dto.UploadResponseDTO;
 import br.com.alexandreluchetti.mibackend.core.exception.ArquivoInvalidoException;
 import br.com.alexandreluchetti.mibackend.core.exception.ProcessamentoEmAndamentoException;
 import br.com.alexandreluchetti.mibackend.core.exception.UploadNaoEncontradoException;
@@ -74,10 +73,10 @@ class ArquivoUseCaseImplTest {
         void deveSalvarUploadComCabecalho017() throws IOException {
             when(uploadRepository.save()).thenReturn(FIXED_UUID);
 
-            UploadResponseDTO response = arquivoUseCaseImpl.upload(validFile017(""));
+            UploadResponse response = arquivoUseCaseImpl.upload(validFile017(""));
 
             // UploadResponseDTO record has field 'id'
-            assertThat(response.id()).isEqualTo(FIXED_UUID);
+            assertThat(response.getId()).isEqualTo(FIXED_UUID);
             verify(uploadRepository).save();
             verify(processamentoUseCase).processar(eq(FIXED_UUID), any());
         }
@@ -87,9 +86,9 @@ class ArquivoUseCaseImplTest {
         void deveSalvarUploadComCabecalho006() throws IOException {
             when(uploadRepository.save()).thenReturn(FIXED_UUID);
 
-            UploadResponseDTO response = arquivoUseCaseImpl.upload(validFile006());
+            UploadResponse response = arquivoUseCaseImpl.upload(validFile006());
 
-            assertThat(response.id()).isEqualTo(FIXED_UUID);
+            assertThat(response.getId()).isEqualTo(FIXED_UUID);
         }
 
         @Test

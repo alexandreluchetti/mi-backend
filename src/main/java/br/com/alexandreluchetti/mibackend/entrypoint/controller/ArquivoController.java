@@ -61,8 +61,8 @@ public class ArquivoController {
             @Parameter(description = "Arquivo delimitado por pipe (|) com cabeçalho válido", required = true)
             @RequestParam("file") MultipartFile file) throws IOException {
 
-        UploadResponseDTO response = arquivoUseCase.upload(file);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(UploadResponseDTO.fromModel(arquivoUseCase.upload(file)));
     }
 
     @Operation(

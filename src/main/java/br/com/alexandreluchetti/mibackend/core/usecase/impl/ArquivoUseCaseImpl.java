@@ -5,7 +5,6 @@ import br.com.alexandreluchetti.mibackend.core.repository.ResumoRepository;
 import br.com.alexandreluchetti.mibackend.core.repository.UploadRepository;
 import br.com.alexandreluchetti.mibackend.core.usecase.ArquivoUseCase;
 import br.com.alexandreluchetti.mibackend.core.usecase.ProcessamentoUseCase;
-import br.com.alexandreluchetti.mibackend.entrypoint.dto.UploadResponseDTO;
 import br.com.alexandreluchetti.mibackend.core.exception.ArquivoInvalidoException;
 import br.com.alexandreluchetti.mibackend.core.exception.ProcessamentoEmAndamentoException;
 import br.com.alexandreluchetti.mibackend.core.exception.UploadNaoEncontradoException;
@@ -38,7 +37,7 @@ public class ArquivoUseCaseImpl implements ArquivoUseCase {
     }
 
     @Override
-    public UploadResponseDTO upload(MultipartFile file) throws IOException {
+    public UploadResponse upload(MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new ArquivoInvalidoException("Arquivo não enviado ou vazio.");
         }
@@ -60,7 +59,7 @@ public class ArquivoUseCaseImpl implements ArquivoUseCase {
         UUID uploadId = uploadRepository.save();
         processamentoUseCase.processar(uploadId, streamParaProcessamento);
 
-        return new UploadResponseDTO(uploadId);
+        return new UploadResponse(uploadId);
     }
 
     /**

@@ -1,14 +1,10 @@
 package br.com.alexandreluchetti.mibackend.entrypoint.controller;
 
 import br.com.alexandreluchetti.mibackend.config.shared.SecurityConfig;
-import br.com.alexandreluchetti.mibackend.core.model.ProgressoResponse;
-import br.com.alexandreluchetti.mibackend.core.model.ResultadoResponse;
-import br.com.alexandreluchetti.mibackend.core.model.ResumoItem;
-import br.com.alexandreluchetti.mibackend.entrypoint.dto.UploadResponseDTO;
+import br.com.alexandreluchetti.mibackend.core.model.*;
 import br.com.alexandreluchetti.mibackend.core.exception.ArquivoInvalidoException;
 import br.com.alexandreluchetti.mibackend.core.exception.ProcessamentoEmAndamentoException;
 import br.com.alexandreluchetti.mibackend.core.exception.UploadNaoEncontradoException;
-import br.com.alexandreluchetti.mibackend.core.model.StatusProcessamento;
 import br.com.alexandreluchetti.mibackend.config.shared.StaticTokenFilter;
 import br.com.alexandreluchetti.mibackend.core.usecase.impl.ArquivoUseCaseImpl;
 import org.junit.jupiter.api.DisplayName;
@@ -77,7 +73,7 @@ class ArquivoControllerTest {
         @DisplayName("201 – upload aceito com token ENVIO e arquivo válido")
         void deveRetornar201QuandoUploadValido() throws Exception {
             // UploadResponseDTO record field is 'id'
-            when(arquivoUseCaseImpl.upload(any())).thenReturn(new UploadResponseDTO(UPLOAD_ID));
+            when(arquivoUseCaseImpl.upload(any())).thenReturn(new UploadResponse(UPLOAD_ID));
 
             mockMvc.perform(multipart("/api/arquivos/upload")
                             .file(validMultipartFile())
