@@ -1,5 +1,8 @@
-package br.com.alexandreluchetti.mibackend.core.exception;
+package br.com.alexandreluchetti.mibackend.config.shared;
 
+import br.com.alexandreluchetti.mibackend.core.exception.ArquivoInvalidoException;
+import br.com.alexandreluchetti.mibackend.core.exception.ProcessamentoEmAndamentoException;
+import br.com.alexandreluchetti.mibackend.core.exception.UploadNaoEncontradoException;
 import br.com.alexandreluchetti.mibackend.entrypoint.dto.ErrorResponseDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
