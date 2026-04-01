@@ -1,5 +1,6 @@
 package br.com.alexandreluchetti.mibackend.config.shared;
 
+import br.com.alexandreluchetti.mibackend.core.model.RoleEnum;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -36,11 +37,11 @@ public class SecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/arquivos/upload")
-                                .hasRole("ENVIO")
+                                .hasRole(RoleEnum.ENVIO.name())
                         .requestMatchers(HttpMethod.GET, "/api/arquivos/*/progresso")
-                                .hasAnyRole("ENVIO", "CONSULTA")
+                                .hasAnyRole(RoleEnum.ENVIO.name(), RoleEnum.CONSULTA.name())
                         .requestMatchers(HttpMethod.GET, "/api/arquivos/*/resultado")
-                                .hasRole("CONSULTA")
+                                .hasRole(RoleEnum.CONSULTA.name())
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(staticTokenFilter, UsernamePasswordAuthenticationFilter.class)
