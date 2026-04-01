@@ -1,4 +1,4 @@
-package br.com.alexandreluchetti.mibackend.exception;
+package br.com.alexandreluchetti.mibackend.core.exception;
 
 public class ProcessamentoEmAndamentoException extends RuntimeException {
 

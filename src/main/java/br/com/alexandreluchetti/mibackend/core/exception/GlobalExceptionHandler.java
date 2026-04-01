@@ -1,4 +1,4 @@
-package br.com.alexandreluchetti.mibackend.exception;
+package br.com.alexandreluchetti.mibackend.core.exception;
 
 import br.com.alexandreluchetti.mibackend.entrypoint.dto.ErrorResponseDTO;
 import org.springframework.http.HttpStatus;
