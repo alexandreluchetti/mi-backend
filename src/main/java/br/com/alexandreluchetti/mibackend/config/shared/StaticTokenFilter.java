@@ -1,4 +1,4 @@
-package br.com.alexandreluchetti.mibackend.security;
+package br.com.alexandreluchetti.mibackend.config.shared;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

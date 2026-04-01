@@ -1,6 +1,5 @@
 package br.com.alexandreluchetti.mibackend.config.shared;
 
-import br.com.alexandreluchetti.mibackend.security.StaticTokenFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
