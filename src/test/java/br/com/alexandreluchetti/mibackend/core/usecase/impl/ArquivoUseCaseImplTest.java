@@ -1,5 +1,6 @@
 package br.com.alexandreluchetti.mibackend.core.usecase.impl;
 
+import br.com.alexandreluchetti.mibackend.core.model.ProgressoResponse;
 import br.com.alexandreluchetti.mibackend.core.repository.ResumoRepository;
 import br.com.alexandreluchetti.mibackend.core.repository.UploadRepository;
 import br.com.alexandreluchetti.mibackend.core.usecase.ProcessamentoUseCase;
@@ -177,9 +178,9 @@ class ArquivoUseCaseImplTest {
                     .build();
             when(uploadRepository.findById(FIXED_UUID)).thenReturn(Optional.of(upload));
 
-            ProgressoResponseDTO dto = arquivoUseCaseImpl.consultarProgresso(FIXED_UUID.toString());
+            ProgressoResponse dto = arquivoUseCaseImpl.consultarProgresso(FIXED_UUID.toString());
 
-            assertThat(dto.status()).isEqualTo(StatusProcessamento.EM_PROCESSAMENTO);
+            assertThat(dto.getStatus()).isEqualTo(StatusProcessamento.EM_PROCESSAMENTO);
         }
 
         @Test
@@ -191,9 +192,9 @@ class ArquivoUseCaseImplTest {
                     .build();
             when(uploadRepository.findById(FIXED_UUID)).thenReturn(Optional.of(upload));
 
-            ProgressoResponseDTO dto = arquivoUseCaseImpl.consultarProgresso(FIXED_UUID.toString());
+            ProgressoResponse dto = arquivoUseCaseImpl.consultarProgresso(FIXED_UUID.toString());
 
-            assertThat(dto.status()).isEqualTo(StatusProcessamento.FINALIZADO_COM_SUCESSO);
+            assertThat(dto.getStatus()).isEqualTo(StatusProcessamento.FINALIZADO_COM_SUCESSO);
         }
 
         @Test

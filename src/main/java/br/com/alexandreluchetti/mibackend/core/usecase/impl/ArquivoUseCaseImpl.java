@@ -1,10 +1,10 @@
 package br.com.alexandreluchetti.mibackend.core.usecase.impl;
 
+import br.com.alexandreluchetti.mibackend.core.model.ProgressoResponse;
 import br.com.alexandreluchetti.mibackend.core.repository.ResumoRepository;
 import br.com.alexandreluchetti.mibackend.core.repository.UploadRepository;
 import br.com.alexandreluchetti.mibackend.core.usecase.ArquivoUseCase;
 import br.com.alexandreluchetti.mibackend.core.usecase.ProcessamentoUseCase;
-import br.com.alexandreluchetti.mibackend.entrypoint.dto.ProgressoResponseDTO;
 import br.com.alexandreluchetti.mibackend.entrypoint.dto.ResultadoResponseDTO;
 import br.com.alexandreluchetti.mibackend.entrypoint.dto.UploadResponseDTO;
 import br.com.alexandreluchetti.mibackend.core.exception.ArquivoInvalidoException;
@@ -93,11 +93,11 @@ public class ArquivoUseCaseImpl implements ArquivoUseCase {
     }
 
     @Override
-    public ProgressoResponseDTO consultarProgresso(String id) {
+    public ProgressoResponse consultarProgresso(String id) {
         UUID uploadId = parseUUID(id);
         Upload upload = uploadRepository.findById(uploadId)
                 .orElseThrow(() -> new UploadNaoEncontradoException(id));
-        return new ProgressoResponseDTO(upload.getStatus());
+        return new ProgressoResponse(upload.getStatus());
     }
 
     @Override

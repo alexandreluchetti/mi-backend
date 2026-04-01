@@ -1,6 +1,7 @@
 package br.com.alexandreluchetti.mibackend.entrypoint.controller;
 
 import br.com.alexandreluchetti.mibackend.config.shared.SecurityConfig;
+import br.com.alexandreluchetti.mibackend.core.model.ProgressoResponse;
 import br.com.alexandreluchetti.mibackend.entrypoint.dto.ProgressoResponseDTO;
 import br.com.alexandreluchetti.mibackend.entrypoint.dto.ResultadoResponseDTO;
 import br.com.alexandreluchetti.mibackend.entrypoint.dto.UploadResponseDTO;
@@ -137,7 +138,7 @@ class ArquivoControllerTest {
         @DisplayName("200 – progresso retornado com token ENVIO e status EM_PROCESSAMENTO")
         void deveRetornar200ComTokenEnvio() throws Exception {
             when(arquivoUseCaseImpl.consultarProgresso(UPLOAD_ID.toString()))
-                    .thenReturn(new ProgressoResponseDTO(StatusProcessamento.EM_PROCESSAMENTO));
+                    .thenReturn(new ProgressoResponse(StatusProcessamento.EM_PROCESSAMENTO));
 
             mockMvc.perform(get("/api/arquivos/{id}/progresso", UPLOAD_ID)
                             .header("Authorization", TOKEN_ENVIO))
@@ -149,7 +150,7 @@ class ArquivoControllerTest {
         @DisplayName("200 – progresso retornado com token CONSULTA")
         void deveRetornar200ComTokenConsulta() throws Exception {
             when(arquivoUseCaseImpl.consultarProgresso(UPLOAD_ID.toString()))
-                    .thenReturn(new ProgressoResponseDTO(StatusProcessamento.FINALIZADO_COM_SUCESSO));
+                    .thenReturn(new ProgressoResponse(StatusProcessamento.FINALIZADO_COM_SUCESSO));
 
             mockMvc.perform(get("/api/arquivos/{id}/progresso", UPLOAD_ID)
                             .header("Authorization", TOKEN_CONSULTA))

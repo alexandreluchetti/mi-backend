@@ -86,7 +86,7 @@ public class ArquivoController {
             @Parameter(description = "ID único retornado no upload", required = true)
             @PathVariable String id) {
 
-        return ResponseEntity.ok(arquivoUseCase.consultarProgresso(id));
+        return ResponseEntity.ok(ProgressoResponseDTO.fromModel(arquivoUseCase.consultarProgresso(id)));
     }
 
     @Operation(
