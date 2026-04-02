@@ -3,6 +3,8 @@ package br.com.alexandreluchetti.mibackend.dataprovider.repository;
 import br.com.alexandreluchetti.mibackend.core.repository.UploadRepository;
 import br.com.alexandreluchetti.mibackend.core.model.StatusProcessamento;
 import br.com.alexandreluchetti.mibackend.core.model.Upload;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -10,9 +12,19 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
+@PropertySource("classpath:sql.properties")
 public class UploadRepositoryImpl implements UploadRepository {
 
     private final JdbcClient jdbcClient;
+
+    @Value("${sql.upload.save}")
+    private String saveSql;
+
+    @Value("${sql.upload.findById}")
+    private String findByIdSql;
+
+    @Value("${sql.upload.updateStatus}")
+    private String updateStatusSql;
 
     public UploadRepositoryImpl(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
@@ -20,16 +32,14 @@ public class UploadRepositoryImpl implements UploadRepository {
 
     @Override
     public UUID save() {
-        return jdbcClient
-                .sql("INSERT INTO upload (status) VALUES ('EM_PROCESSAMENTO') RETURNING id")
+        return jdbcClient.sql(saveSql)
                 .query(UUID.class)
                 .single();
     }
 
     @Override
     public Optional<Upload> findById(UUID id) {
-        return jdbcClient
-                .sql("SELECT id, status, created_at FROM upload WHERE id = :id")
+        return jdbcClient.sql(findByIdSql)
                 .param("id", id)
                 .query((rs, rowNum) -> Upload.builder()
                         .id(UUID.fromString(rs.getString("id")))
@@ -41,8 +51,7 @@ public class UploadRepositoryImpl implements UploadRepository {
 
     @Override
     public void updateStatus(UUID id, StatusProcessamento status) {
-        jdbcClient
-                .sql("UPDATE upload SET status = :status WHERE id = :id")
+        jdbcClient.sql(updateStatusSql)
                 .param("status", status.name())
                 .param("id", id)
                 .update();
