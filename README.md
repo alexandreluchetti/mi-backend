@@ -6,7 +6,7 @@ API REST em Java 21 + Spring Boot 3.4.4 para upload e processamento de arquivos.
 
 ## Tecnologias e Arquitetura
 
-O projeto foi construído pensando em leveza, performance em manipulação de grandes arquivos e facilidade para teste/deploy:
+O projeto foi construído em arquitetura limpa (**Clean Architecture**) pensando em leveza, performance em manipulação de grandes arquivos e facilidade para teste/deploy:
 
 | Tecnologia | Finalidade / Versão |
 |---|---|
@@ -78,7 +78,7 @@ Se for testar por scripts externos de HTTP (`curl` ou Postman etc.), injete no c
 
 ## Testes Automatizados (Garantia de Cobertura)
 
-O sistema de testes mescla um comportamento unitário somado a testes de Repositório/Integração através da fantástica biblioteca **Testcontainers**, que levanta uma instância isolada em um *Docker temporário* apenas para passar na esteira de integração validadando query real, e a descartando ao final do runner.
+O sistema de testes mescla um comportamento unitário somado a testes de Repositório/Integração através da biblioteca **Testcontainers**, que levanta uma instância isolada em um *Docker temporário* apenas para passar na esteira de integração validadando query real, e a descartando ao final do runner.
 
 Para ver os relatórios de execução e relatórios de métrica de cobertura:
 ```bash
