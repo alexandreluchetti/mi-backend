@@ -2,7 +2,6 @@ package br.com.alexandreluchetti.mibackend.core.usecase.impl;
 
 import br.com.alexandreluchetti.mibackend.core.repository.ResumoRepository;
 import br.com.alexandreluchetti.mibackend.core.repository.UploadRepository;
-import br.com.alexandreluchetti.mibackend.core.usecase.impl.ProcessamentoUseCaseImpl;
 import br.com.alexandreluchetti.mibackend.core.model.StatusProcessamento;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -13,9 +12,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.UUID;
 
@@ -23,11 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 
-/**
- * Testa o método {@code processar()} do ProcessamentoService de forma síncrona,
- * contornando a anotação @Async (que é ignorada em chamadas diretas no contexto de
- * teste unitário sem contexto Spring).
- */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ProcessamentoService")
 class ProcessamentoUseCaseImplTest {
@@ -43,8 +38,18 @@ class ProcessamentoUseCaseImplTest {
 
     private static final UUID UPLOAD_ID = UUID.randomUUID();
 
-    private InputStream stream(String content) {
-        return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+    private Path createTempFile(String content) throws IOException {
+        Path tempFile = Files.createTempFile("teste", ".txt");
+        Files.writeString(tempFile, content);
+        return tempFile;
+    }
+
+    private void waitAwhile() {
+        try {
+            Thread.sleep(500); // aguardar o boundedElastic completar assincronamente
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     // ================================================================== //
@@ -56,9 +61,12 @@ class ProcessamentoUseCaseImplTest {
 
         @Test
         @DisplayName("deve contar corretamente registros agrupados por código")
-        void deveContarRegistrosCorretamente() {
+        void deveContarRegistrosCorretamente() throws IOException {
             String conteudo = "|0000|017|HEADER\n|0001|0|\n|1000|A|\n|1000|B|\n|2000|C|\n|9999|TRAILER|";
-            processamentoUseCaseImpl.processar(UPLOAD_ID, stream(conteudo));
+            Path file = createTempFile(conteudo);
+            
+            processamentoUseCaseImpl.processar(UPLOAD_ID, file);
+            waitAwhile();
 
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Map<String, Long>> captor = ArgumentCaptor.forClass(Map.class);
@@ -74,9 +82,12 @@ class ProcessamentoUseCaseImplTest {
 
         @Test
         @DisplayName("deve processar arquivo com uma única linha de dados")
-        void deveProcessarArquivoComUmaLinha() {
+        void deveProcessarArquivoComUmaLinha() throws IOException {
             String conteudo = "|0000|006|HEADER\n|0001|0|\n|3000|Dado|";
-            processamentoUseCaseImpl.processar(UPLOAD_ID, stream(conteudo));
+            Path file = createTempFile(conteudo);
+            
+            processamentoUseCaseImpl.processar(UPLOAD_ID, file);
+            waitAwhile();
 
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Map<String, Long>> captor = ArgumentCaptor.forClass(Map.class);
@@ -87,9 +98,12 @@ class ProcessamentoUseCaseImplTest {
 
         @Test
         @DisplayName("deve ignorar linhas em branco no meio do arquivo")
-        void deveIgnorarLinhasEmBranco() {
+        void deveIgnorarLinhasEmBranco() throws IOException {
             String conteudo = "|0000|017|HEADER\n\n|0001|0|\n\n|5000|X|\n\n";
-            processamentoUseCaseImpl.processar(UPLOAD_ID, stream(conteudo));
+            Path file = createTempFile(conteudo);
+            
+            processamentoUseCaseImpl.processar(UPLOAD_ID, file);
+            waitAwhile();
 
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Map<String, Long>> captor = ArgumentCaptor.forClass(Map.class);
@@ -102,10 +116,12 @@ class ProcessamentoUseCaseImplTest {
 
         @Test
         @DisplayName("deve processar linha sem pipe inicial corretamente")
-        void deveProcessarLinhaSemPipeInicial() {
-            // Linha sem pipe inicial: "0000|017|HEADER"
+        void deveProcessarLinhaSemPipeInicial() throws IOException {
             String conteudo = "0000|017|HEADER\n|0001|0|\n|1000|foo|";
-            processamentoUseCaseImpl.processar(UPLOAD_ID, stream(conteudo));
+            Path file = createTempFile(conteudo);
+            
+            processamentoUseCaseImpl.processar(UPLOAD_ID, file);
+            waitAwhile();
 
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Map<String, Long>> captor = ArgumentCaptor.forClass(Map.class);
@@ -124,34 +140,35 @@ class ProcessamentoUseCaseImplTest {
 
         @Test
         @DisplayName("deve marcar upload como FINALIZADO_COM_SUCESSO após processamento normal")
-        void deveMarcaStatusFinalizado() {
+        void deveMarcaStatusFinalizado() throws IOException {
             String conteudo = "|0000|017|HEADER\n|0001|0|\n|1000|X|";
-            processamentoUseCaseImpl.processar(UPLOAD_ID, stream(conteudo));
+            Path file = createTempFile(conteudo);
+            
+            processamentoUseCaseImpl.processar(UPLOAD_ID, file);
+            waitAwhile();
 
             verify(uploadRepository).updateStatus(UPLOAD_ID, StatusProcessamento.FINALIZADO_COM_SUCESSO);
         }
 
         @Test
         @DisplayName("deve marcar upload como FINALIZADO_COM_SUCESSO mesmo para arquivo válido mínimo")
-        void deveMarcaStatusFinalizadoArquivoMinimo() {
-            // Arquivo com apenas cabeçalho — ainda assim deve finalizar com sucesso
+        void deveMarcaStatusFinalizadoArquivoMinimo() throws IOException {
             String conteudo = "|0000|017|X\n|0001|0|";
-            processamentoUseCaseImpl.processar(UPLOAD_ID, stream(conteudo));
+            Path file = createTempFile(conteudo);
+            
+            processamentoUseCaseImpl.processar(UPLOAD_ID, file);
+            waitAwhile();
 
             verify(uploadRepository).updateStatus(UPLOAD_ID, StatusProcessamento.FINALIZADO_COM_SUCESSO);
         }
 
         @Test
-        @DisplayName("deve marcar upload como FINALIZADO_COM_ERROS quando stream lança IOException")
-        void deveMarcaStatusErroQuandoIOException() throws Exception {
-            InputStream streamComErro = new InputStream() {
-                @Override
-                public int read() {
-                    throw new RuntimeException("Erro simulado de I/O");
-                }
-            };
-
-            processamentoUseCaseImpl.processar(UPLOAD_ID, streamComErro);
+        @DisplayName("deve marcar upload como FINALIZADO_COM_ERROS quando Path for inválido/inexistente")
+        void deveMarcaStatusErroQuandoIOException() {
+            Path fileInexistente = Paths.get("/caminho/nao/existe");
+            
+            processamentoUseCaseImpl.processar(UPLOAD_ID, fileInexistente);
+            waitAwhile();
 
             verify(uploadRepository).updateStatus(UPLOAD_ID, StatusProcessamento.FINALIZADO_COM_ERROS);
         }
