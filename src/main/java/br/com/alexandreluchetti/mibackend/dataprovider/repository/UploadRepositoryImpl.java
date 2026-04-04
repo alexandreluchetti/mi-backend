@@ -32,9 +32,11 @@ public class UploadRepositoryImpl implements UploadRepository {
 
     @Override
     public UUID save() {
-        return jdbcClient.sql(saveSql)
-                .query(UUID.class)
-                .single();
+        UUID id = UUID.randomUUID();
+        jdbcClient.sql(saveSql)
+                .param("id", id)
+                .update();
+        return id;
     }
 
     @Override
