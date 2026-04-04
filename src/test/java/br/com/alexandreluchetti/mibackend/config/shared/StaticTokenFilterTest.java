@@ -1,22 +1,24 @@
 package br.com.alexandreluchetti.mibackend.config.shared;
 
-import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
+import org.springframework.mock.web.server.MockServerWebExchange;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class StaticTokenFilterTest {
 
     private StaticTokenFilter filter;
-    private MockHttpServletRequest request;
-    private MockHttpServletResponse response;
-    private FilterChain filterChain;
+    private WebFilterChain filterChain;
 
     @BeforeEach
     void setUp() {
@@ -24,62 +26,90 @@ class StaticTokenFilterTest {
         ReflectionTestUtils.setField(filter, "tokenEnvio", "token-envio-123");
         ReflectionTestUtils.setField(filter, "tokenConsulta", "token-consulta-456");
 
-        request = new MockHttpServletRequest();
-        response = new MockHttpServletResponse();
-        filterChain = mock(FilterChain.class);
+        filterChain = mock(WebFilterChain.class);
+    }
+
+    @Test
+    void filter_WithValidEnvioToken_ShouldSetAuthentication() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/")
+                .header("Authorization", "Bearer token-envio-123")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        when(filterChain.filter(any())).thenAnswer(invocation -> 
+            ReactiveSecurityContextHolder.getContext().doOnNext(ctx -> {
+                assertNotNull(ctx.getAuthentication());
+                assertTrue(ctx.getAuthentication().getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_ENVIO")));
+            }).then()
+        );
+
+        StepVerifier.create(filter.filter(exchange, filterChain))
+                .verifyComplete();
+    }
+
+    @Test
+    void filter_WithValidConsultaToken_ShouldSetAuthentication() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/")
+                .header("Authorization", "Bearer token-consulta-456")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        when(filterChain.filter(any())).thenAnswer(invocation -> 
+            ReactiveSecurityContextHolder.getContext().doOnNext(ctx -> {
+                assertNotNull(ctx.getAuthentication());
+                assertTrue(ctx.getAuthentication().getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_CONSULTA")));
+            }).then()
+        );
+
+        StepVerifier.create(filter.filter(exchange, filterChain))
+                .verifyComplete();
+    }
+
+    @Test
+    void filter_WithInvalidToken_ShouldNotSetAuthentication() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/")
+                .header("Authorization", "Bearer token-invalido")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        when(filterChain.filter(any())).thenReturn(Mono.empty());
+
+        StepVerifier.create(filter.filter(exchange, filterChain)
+                .contextWrite(ReactiveSecurityContextHolder.clearContext()))
+                .verifyComplete();
         
-        SecurityContextHolder.clearContext();
+        verify(filterChain).filter(exchange);
     }
 
     @Test
-    void doFilterInternal_WithValidEnvioToken_ShouldSetAuthentication() throws Exception {
-        request.addHeader("Authorization", "Bearer token-envio-123");
+    void filter_WithoutHeader_ShouldNotSetAuthentication() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/").build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-        filter.doFilterInternal(request, response, filterChain);
+        when(filterChain.filter(any())).thenReturn(Mono.empty());
 
-        verify(filterChain).doFilter(request, response);
-        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
-        assertTrue(SecurityContextHolder.getContext().getAuthentication().getAuthorities()
-                .stream().anyMatch(a -> a.getAuthority().equals("ROLE_ENVIO")));
+        StepVerifier.create(filter.filter(exchange, filterChain)
+                .contextWrite(ReactiveSecurityContextHolder.clearContext()))
+                .verifyComplete();
+        
+        verify(filterChain).filter(exchange);
     }
 
     @Test
-    void doFilterInternal_WithValidConsultaToken_ShouldSetAuthentication() throws Exception {
-        request.addHeader("Authorization", "Bearer token-consulta-456");
+    void filter_WithInvalidPrefix_ShouldNotSetAuthentication() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/")
+                .header("Authorization", "Basic token-envio-123")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-        filter.doFilterInternal(request, response, filterChain);
+        when(filterChain.filter(any())).thenReturn(Mono.empty());
 
-        verify(filterChain).doFilter(request, response);
-        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
-        assertTrue(SecurityContextHolder.getContext().getAuthentication().getAuthorities()
-                .stream().anyMatch(a -> a.getAuthority().equals("ROLE_CONSULTA")));
-    }
-
-    @Test
-    void doFilterInternal_WithInvalidToken_ShouldNotSetAuthentication() throws Exception {
-        request.addHeader("Authorization", "Bearer token-invalido");
-
-        filter.doFilterInternal(request, response, filterChain);
-
-        verify(filterChain).doFilter(request, response);
-        assertNull(SecurityContextHolder.getContext().getAuthentication());
-    }
-
-    @Test
-    void doFilterInternal_WithoutHeader_ShouldNotSetAuthentication() throws Exception {
-        filter.doFilterInternal(request, response, filterChain);
-
-        verify(filterChain).doFilter(request, response);
-        assertNull(SecurityContextHolder.getContext().getAuthentication());
-    }
-
-    @Test
-    void doFilterInternal_WithInvalidPrefix_ShouldNotSetAuthentication() throws Exception {
-        request.addHeader("Authorization", "Basic token-envio-123");
-
-        filter.doFilterInternal(request, response, filterChain);
-
-        verify(filterChain).doFilter(request, response);
-        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        StepVerifier.create(filter.filter(exchange, filterChain)
+                .contextWrite(ReactiveSecurityContextHolder.clearContext()))
+                .verifyComplete();
+        
+        verify(filterChain).filter(exchange);
     }
 }
