@@ -1,23 +1,22 @@
 package br.com.alexandreluchetti.mibackend.config.shared;
 
 import br.com.alexandreluchetti.mibackend.core.model.RoleEnum;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
-
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
 
-import java.io.IOException;
 import java.util.List;
 
 @Component
-public class StaticTokenFilter extends OncePerRequestFilter {
+public class StaticTokenFilter implements WebFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
@@ -28,12 +27,9 @@ public class StaticTokenFilter extends OncePerRequestFilter {
     private String tokenConsulta;
 
     @Override
-    protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
+    @NonNull
+    public Mono<Void> filter(@NonNull ServerWebExchange exchange, @NonNull WebFilterChain chain) {
+        String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
             String token = authHeader.substring(BEARER_PREFIX.length()).trim();
@@ -42,11 +38,13 @@ public class StaticTokenFilter extends OncePerRequestFilter {
             if (role != null) {
                 var authorities = List.of(role);
                 var authentication = new UsernamePasswordAuthenticationToken(token, null, authorities);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                SecurityContext context = new SecurityContextImpl(authentication);
+                return chain.filter(exchange)
+                        .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(context)));
             }
         }
 
-        filterChain.doFilter(request, response);
+        return chain.filter(exchange);
     }
 
     private RoleEnum resolveRole(String token) {
