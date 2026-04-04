@@ -16,10 +16,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/arquivos")
@@ -57,12 +56,13 @@ public class ArquivoController {
                     content = @Content(schema = @Schema(hidden = true)))
     })
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<UploadResponseDTO> upload(
+    public Mono<ResponseEntity<UploadResponseDTO>> upload(
             @Parameter(description = "Arquivo delimitado por pipe (|) com cabeçalho válido", required = true)
-            @RequestParam("file") MultipartFile file) throws IOException {
+            @RequestPart("file") FilePart file) {
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(UploadResponseDTO.fromModel(arquivoUseCase.upload(file)));
+        return arquivoUseCase.upload(file)
+                .map(response -> ResponseEntity.status(HttpStatus.CREATED)
+                        .body(UploadResponseDTO.fromModel(response)));
     }
 
     @Operation(
@@ -82,11 +82,12 @@ public class ArquivoController {
                     content = @Content(schema = @Schema(hidden = true)))
     })
     @GetMapping("/{id}/progresso")
-    public ResponseEntity<ProgressoResponseDTO> consultarProgresso(
+    public Mono<ResponseEntity<ProgressoResponseDTO>> consultarProgresso(
             @Parameter(description = "ID único retornado no upload", required = true)
             @PathVariable String id) {
 
-        return ResponseEntity.ok(ProgressoResponseDTO.fromModel(arquivoUseCase.consultarProgresso(id)));
+        return arquivoUseCase.consultarProgresso(id)
+                .map(response -> ResponseEntity.ok(ProgressoResponseDTO.fromModel(response)));
     }
 
     @Operation(
@@ -113,10 +114,11 @@ public class ArquivoController {
                     content = @Content(schema = @Schema(hidden = true)))
     })
     @GetMapping("/{id}/resultado")
-    public ResponseEntity<ResultadoResponseDTO> consultarResultado(
+    public Mono<ResponseEntity<ResultadoResponseDTO>> consultarResultado(
             @Parameter(description = "ID único retornado no upload", required = true)
             @PathVariable String id) {
 
-        return ResponseEntity.ok(ResultadoResponseDTO.fromModel(arquivoUseCase.consultarResultado(id)));
+        return arquivoUseCase.consultarResultado(id)
+                .map(response -> ResponseEntity.ok(ResultadoResponseDTO.fromModel(response)));
     }
 }

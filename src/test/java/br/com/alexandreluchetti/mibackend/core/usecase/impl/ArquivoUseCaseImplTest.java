@@ -14,15 +14,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.http.codec.multipart.FilePart;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -49,16 +52,23 @@ class ArquivoUseCaseImplTest {
 
     private static final UUID FIXED_UUID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
 
-    /** Constrói um MultipartFile com cabeçalho válido (prefixo 017). */
-    private MockMultipartFile validFile017(String extraLines) {
-        String content = "|0000|017|DADOS\n|0001|0|\n" + extraLines;
-        return new MockMultipartFile("file", "test.txt", "text/plain", content.getBytes());
+    private FilePart createMockFilePart(String filename, String content) {
+        FilePart filePart = mock(FilePart.class);
+        when(filePart.filename()).thenReturn(filename);
+        when(filePart.transferTo(any(Path.class))).thenAnswer(invocation -> {
+            Path path = invocation.getArgument(0);
+            Files.writeString(path, content);
+            return Mono.empty();
+        });
+        return filePart;
     }
 
-    /** Constrói um MultipartFile com cabeçalho válido (prefixo 006). */
-    private MockMultipartFile validFile006() {
-        String content = "|0000|006|DADOS\n|0001|0|\n|1000|foo|\n";
-        return new MockMultipartFile("file", "test.txt", "text/plain", content.getBytes());
+    private FilePart validFile017(String extraLines) {
+        return createMockFilePart("test.txt", "|0000|017|DADOS\n|0001|0|\n" + extraLines);
+    }
+
+    private FilePart validFile006() {
+        return createMockFilePart("test.txt", "|0000|006|DADOS\n|0001|0|\n|1000|foo|\n");
     }
 
     // ================================================================== //
@@ -70,88 +80,97 @@ class ArquivoUseCaseImplTest {
 
         @Test
         @DisplayName("deve retornar UploadResponseDTO com UUID quando cabeçalho 017 é válido")
-        void deveSalvarUploadComCabecalho017() throws IOException {
+        void deveSalvarUploadComCabecalho017() {
             when(uploadRepository.save()).thenReturn(FIXED_UUID);
 
-            UploadResponse response = arquivoUseCaseImpl.upload(validFile017(""));
+            StepVerifier.create(arquivoUseCaseImpl.upload(validFile017("")))
+                    .assertNext(response -> {
+                        assertThat(response.getId()).isEqualTo(FIXED_UUID);
+                    })
+                    .verifyComplete();
 
-            // UploadResponseDTO record has field 'id'
-            assertThat(response.getId()).isEqualTo(FIXED_UUID);
             verify(uploadRepository).save();
-            verify(processamentoUseCase).processar(eq(FIXED_UUID), any());
+            verify(processamentoUseCase).processar(eq(FIXED_UUID), any(Path.class));
         }
 
         @Test
         @DisplayName("deve retornar UploadResponseDTO com UUID quando cabeçalho 006 é válido")
-        void deveSalvarUploadComCabecalho006() throws IOException {
+        void deveSalvarUploadComCabecalho006() {
             when(uploadRepository.save()).thenReturn(FIXED_UUID);
 
-            UploadResponse response = arquivoUseCaseImpl.upload(validFile006());
-
-            assertThat(response.getId()).isEqualTo(FIXED_UUID);
+            StepVerifier.create(arquivoUseCaseImpl.upload(validFile006()))
+                    .assertNext(response -> {
+                        assertThat(response.getId()).isEqualTo(FIXED_UUID);
+                    })
+                    .verifyComplete();
         }
 
         @Test
         @DisplayName("deve lançar ArquivoInvalidoException quando arquivo é nulo")
         void deveLancarExcecaoParaArquivoNulo() {
-            assertThatThrownBy(() -> arquivoUseCaseImpl.upload(null))
-                    .isInstanceOf(ArquivoInvalidoException.class)
-                    .hasMessageContaining("Arquivo não enviado ou vazio");
+            StepVerifier.create(arquivoUseCaseImpl.upload(null))
+                    .expectErrorMatches(t -> t instanceof ArquivoInvalidoException &&
+                            t.getMessage().contains("Arquivo não enviado ou vazio"))
+                    .verify();
         }
 
         @Test
         @DisplayName("deve lançar ArquivoInvalidoException quando arquivo está vazio")
         void deveLancarExcecaoParaArquivoVazio() {
-            MockMultipartFile empty = new MockMultipartFile("file", "vazio.txt", "text/plain", new byte[0]);
+            FilePart empty = mock(FilePart.class);
+            when(empty.filename()).thenReturn("");
 
-            assertThatThrownBy(() -> arquivoUseCaseImpl.upload(empty))
-                    .isInstanceOf(ArquivoInvalidoException.class);
+            StepVerifier.create(arquivoUseCaseImpl.upload(empty))
+                    .expectError(ArquivoInvalidoException.class)
+                    .verify();
         }
 
         @Test
         @DisplayName("deve lançar ArquivoInvalidoException quando prefixo da 1ª linha é inválido")
         void deveLancarExcecaoParaPrimeiraLinhaInvalida() {
-            String content = "|9999|XXX|HEADER_ERRADO\n|0001|0|\n";
-            MockMultipartFile file = new MockMultipartFile("file", "bad.txt", "text/plain", content.getBytes());
+            FilePart file = createMockFilePart("bad.txt", "|9999|XXX|HEADER_ERRADO\n|0001|0|\n");
+            when(uploadRepository.save()).thenReturn(FIXED_UUID);
 
-            assertThatThrownBy(() -> arquivoUseCaseImpl.upload(file))
-                    .isInstanceOf(ArquivoInvalidoException.class)
-                    .hasMessageContaining("Cabeçalho inválido");
-
-            verifyNoInteractions(uploadRepository);
+            StepVerifier.create(arquivoUseCaseImpl.upload(file))
+                    .expectErrorMatches(t -> t instanceof ArquivoInvalidoException &&
+                            t.getMessage().contains("Cabeçalho inválido"))
+                    .verify();
         }
 
         @Test
         @DisplayName("deve lançar ArquivoInvalidoException quando 2ª linha está ausente")
         void deveLancarExcecaoParaSegundaLinhaAusente() {
-            String content = "|0000|017|DADOS";   // sem segunda linha
-            MockMultipartFile file = new MockMultipartFile("file", "bad.txt", "text/plain", content.getBytes());
+            FilePart file = createMockFilePart("bad.txt", "|0000|017|DADOS");
+            when(uploadRepository.save()).thenReturn(FIXED_UUID);
 
-            assertThatThrownBy(() -> arquivoUseCaseImpl.upload(file))
-                    .isInstanceOf(ArquivoInvalidoException.class)
-                    .hasMessageContaining("Segunda linha inválida");
+            StepVerifier.create(arquivoUseCaseImpl.upload(file))
+                    .expectErrorMatches(t -> t instanceof ArquivoInvalidoException &&
+                            t.getMessage().contains("Segunda linha inválida"))
+                    .verify();
         }
 
         @Test
         @DisplayName("deve lançar ArquivoInvalidoException quando 2ª linha não é '|0001|0|'")
         void deveLancarExcecaoParaSegundaLinhaErrada() {
-            String content = "|0000|017|DADOS\n|ERRADO|\n";
-            MockMultipartFile file = new MockMultipartFile("file", "bad.txt", "text/plain", content.getBytes());
+            FilePart file = createMockFilePart("bad.txt", "|0000|017|DADOS\n|ERRADO|\n");
+            when(uploadRepository.save()).thenReturn(FIXED_UUID);
 
-            assertThatThrownBy(() -> arquivoUseCaseImpl.upload(file))
-                    .isInstanceOf(ArquivoInvalidoException.class)
-                    .hasMessageContaining("Segunda linha inválida");
+            StepVerifier.create(arquivoUseCaseImpl.upload(file))
+                    .expectErrorMatches(t -> t instanceof ArquivoInvalidoException &&
+                            t.getMessage().contains("Segunda linha inválida"))
+                    .verify();
         }
 
         @Test
         @DisplayName("deve lançar ArquivoInvalidoException quando arquivo tem apenas cabeçalho sem 2ª linha")
         void deveLancarExcecaoParaArquivoSemConteudo() {
-            String content = "|0000|017|DADOS\n";
-            MockMultipartFile file = new MockMultipartFile("file", "single.txt", "text/plain", content.getBytes());
+            FilePart file = createMockFilePart("single.txt", "|0000|017|DADOS\n");
+            when(uploadRepository.save()).thenReturn(FIXED_UUID);
 
-            assertThatThrownBy(() -> arquivoUseCaseImpl.upload(file))
-                    .isInstanceOf(ArquivoInvalidoException.class)
-                    .hasMessageContaining("Segunda linha inválida");
+            StepVerifier.create(arquivoUseCaseImpl.upload(file))
+                    .expectErrorMatches(t -> t instanceof ArquivoInvalidoException &&
+                            t.getMessage().contains("Segunda linha inválida"))
+                    .verify();
         }
     }
 
@@ -171,9 +190,9 @@ class ArquivoUseCaseImplTest {
                     .build();
             when(uploadRepository.findById(FIXED_UUID)).thenReturn(Optional.of(upload));
 
-            ProgressoResponse dto = arquivoUseCaseImpl.consultarProgresso(FIXED_UUID.toString());
-
-            assertThat(dto.getStatus()).isEqualTo(StatusProcessamento.EM_PROCESSAMENTO);
+            StepVerifier.create(arquivoUseCaseImpl.consultarProgresso(FIXED_UUID.toString()))
+                    .assertNext(dto -> assertThat(dto.getStatus()).isEqualTo(StatusProcessamento.EM_PROCESSAMENTO))
+                    .verifyComplete();
         }
 
         @Test
@@ -185,9 +204,9 @@ class ArquivoUseCaseImplTest {
                     .build();
             when(uploadRepository.findById(FIXED_UUID)).thenReturn(Optional.of(upload));
 
-            ProgressoResponse dto = arquivoUseCaseImpl.consultarProgresso(FIXED_UUID.toString());
-
-            assertThat(dto.getStatus()).isEqualTo(StatusProcessamento.FINALIZADO_COM_SUCESSO);
+            StepVerifier.create(arquivoUseCaseImpl.consultarProgresso(FIXED_UUID.toString()))
+                    .assertNext(dto -> assertThat(dto.getStatus()).isEqualTo(StatusProcessamento.FINALIZADO_COM_SUCESSO))
+                    .verifyComplete();
         }
 
         @Test
@@ -195,15 +214,17 @@ class ArquivoUseCaseImplTest {
         void deveLancarExcecaoParaIdInexistente() {
             when(uploadRepository.findById(FIXED_UUID)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> arquivoUseCaseImpl.consultarProgresso(FIXED_UUID.toString()))
-                    .isInstanceOf(UploadNaoEncontradoException.class);
+            StepVerifier.create(arquivoUseCaseImpl.consultarProgresso(FIXED_UUID.toString()))
+                    .expectError(UploadNaoEncontradoException.class)
+                    .verify();
         }
 
         @Test
         @DisplayName("deve lançar UploadNaoEncontradoException quando ID não é UUID válido")
         void deveLancarExcecaoParaIdFormatadoErrado() {
-            assertThatThrownBy(() -> arquivoUseCaseImpl.consultarProgresso("nao-eh-um-uuid"))
-                    .isInstanceOf(UploadNaoEncontradoException.class);
+            StepVerifier.create(arquivoUseCaseImpl.consultarProgresso("nao-eh-um-uuid"))
+                    .expectError(UploadNaoEncontradoException.class)
+                    .verify();
         }
     }
 
@@ -223,8 +244,9 @@ class ArquivoUseCaseImplTest {
                     .build();
             when(uploadRepository.findById(FIXED_UUID)).thenReturn(Optional.of(upload));
 
-            assertThatThrownBy(() -> arquivoUseCaseImpl.consultarResultado(FIXED_UUID.toString()))
-                    .isInstanceOf(ProcessamentoEmAndamentoException.class);
+            StepVerifier.create(arquivoUseCaseImpl.consultarResultado(FIXED_UUID.toString()))
+                    .expectError(ProcessamentoEmAndamentoException.class)
+                    .verify();
 
             verifyNoInteractions(resumoRepository);
         }
@@ -243,12 +265,14 @@ class ArquivoUseCaseImplTest {
             when(uploadRepository.findById(FIXED_UUID)).thenReturn(Optional.of(upload));
             when(resumoRepository.findByUploadId(FIXED_UUID)).thenReturn(List.of(item1, item2, item3));
 
-            ResultadoResponse dto = arquivoUseCaseImpl.consultarResultado(FIXED_UUID.toString());
-
-            assertThat(dto.getStatus()).isEqualTo(StatusProcessamento.FINALIZADO_COM_SUCESSO);
-            assertThat(dto.getResumo()).hasSize(3);
-            assertThat(dto.getResumo()).extracting(ResumoItem::getRegistro)
-                    .containsExactly("0000", "0001", "1000");
+            StepVerifier.create(arquivoUseCaseImpl.consultarResultado(FIXED_UUID.toString()))
+                    .assertNext(dto -> {
+                        assertThat(dto.getStatus()).isEqualTo(StatusProcessamento.FINALIZADO_COM_SUCESSO);
+                        assertThat(dto.getResumo()).hasSize(3);
+                        assertThat(dto.getResumo()).extracting(ResumoItem::getRegistro)
+                                .containsExactly("0000", "0001", "1000");
+                    })
+                    .verifyComplete();
         }
 
         @Test
@@ -262,9 +286,9 @@ class ArquivoUseCaseImplTest {
             when(uploadRepository.findById(FIXED_UUID)).thenReturn(Optional.of(upload));
             when(resumoRepository.findByUploadId(FIXED_UUID)).thenReturn(List.of());
 
-            ResultadoResponse dto = arquivoUseCaseImpl.consultarResultado(FIXED_UUID.toString());
-
-            assertThat(dto.getResumo()).isEmpty();
+            StepVerifier.create(arquivoUseCaseImpl.consultarResultado(FIXED_UUID.toString()))
+                    .assertNext(dto -> assertThat(dto.getResumo()).isEmpty())
+                    .verifyComplete();
         }
 
         @Test
@@ -272,8 +296,9 @@ class ArquivoUseCaseImplTest {
         void deveLancarExcecaoParaIdInexistente() {
             when(uploadRepository.findById(FIXED_UUID)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> arquivoUseCaseImpl.consultarResultado(FIXED_UUID.toString()))
-                    .isInstanceOf(UploadNaoEncontradoException.class);
+            StepVerifier.create(arquivoUseCaseImpl.consultarResultado(FIXED_UUID.toString()))
+                    .expectError(UploadNaoEncontradoException.class)
+                    .verify();
         }
     }
 }
