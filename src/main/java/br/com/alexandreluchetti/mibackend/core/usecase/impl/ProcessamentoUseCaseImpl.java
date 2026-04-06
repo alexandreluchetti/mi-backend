@@ -6,13 +6,14 @@ import br.com.alexandreluchetti.mibackend.core.usecase.ProcessamentoUseCase;
 import br.com.alexandreluchetti.mibackend.core.model.StatusProcessamento;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -33,33 +34,40 @@ public class ProcessamentoUseCaseImpl implements ProcessamentoUseCase {
     }
 
     @Override
-    @Async("processingExecutor")
-    public void processar(UUID uploadId, InputStream inputStream) {
-        log.info("Iniciando processamento do upload: {}", uploadId);
+    public void processar(UUID uploadId, Path arquivo) {
+        log.info("Iniciando processamento do upload (Background reativo): {}", uploadId);
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
-            Map<String, Long> contagens = new LinkedHashMap<>();
+        Mono.fromRunnable(() -> {
+            try (BufferedReader reader = Files.newBufferedReader(arquivo, StandardCharsets.UTF_8)) {
+                Map<String, Long> contagens = new LinkedHashMap<>();
 
-            // Processa linha por linha — nunca carrega o arquivo inteiro em memória
-            reader.lines().forEach(linha -> {
-                String codigoRegistro = extrairCodigoRegistro(linha);
-                if (codigoRegistro != null && !codigoRegistro.isBlank()) {
-                    contagens.merge(codigoRegistro, 1L, (a, b) -> a + b);
-                }
-            });
+                reader.lines().forEach(linha -> {
+                    String codigoRegistro = extrairCodigoRegistro(linha);
+                    if (codigoRegistro != null && !codigoRegistro.isBlank()) {
+                        contagens.merge(codigoRegistro, 1L, (a, b) -> a + b);
+                    }
+                });
 
-            resumoRepository.saveAll(uploadId, contagens);
-            uploadRepository.updateStatus(uploadId, StatusProcessamento.FINALIZADO_COM_SUCESSO);
+                resumoRepository.saveAll(uploadId, contagens);
+                uploadRepository.updateStatus(uploadId, StatusProcessamento.FINALIZADO_COM_SUCESSO);
 
-            log.info("Processamento finalizado com sucesso: {} | {} tipos de registro", uploadId, contagens.size());
-
-        } catch (IOException e) {
-            log.error("Erro de I/O no processamento do upload {}: {}", uploadId, e.getMessage());
-            uploadRepository.updateStatus(uploadId, StatusProcessamento.FINALIZADO_COM_ERROS);
-        } catch (Exception e) {
-            log.error("Erro inesperado no processamento do upload {}: {}", uploadId, e.getMessage());
-            uploadRepository.updateStatus(uploadId, StatusProcessamento.FINALIZADO_COM_ERROS);
-        }
+                log.info("Processamento finalizado com sucesso: {} | {} tipos de registro gravados.", uploadId, contagens.size());
+            } catch (IOException e) {
+                log.error("Erro de I/O no processamento do upload {}: {}", uploadId, e.getMessage());
+                uploadRepository.updateStatus(uploadId, StatusProcessamento.FINALIZADO_COM_ERROS);
+            } catch (Exception e) {
+                log.error("Erro inesperado no processamento do upload {}: {}", uploadId, e.getMessage());
+                uploadRepository.updateStatus(uploadId, StatusProcessamento.FINALIZADO_COM_ERROS);
+            }
+        }).subscribeOn(Schedulers.boundedElastic())
+          .doFinally(signalType -> {
+              try {
+                  Files.deleteIfExists(arquivo);
+                  log.info("Arquivo de processamento {} deletado", arquivo);
+              } catch (IOException e) {
+                  log.error("Nao foi possivel apagar o arquivo definitivo {}", arquivo);
+              }
+          }).subscribe();
     }
 
     /**

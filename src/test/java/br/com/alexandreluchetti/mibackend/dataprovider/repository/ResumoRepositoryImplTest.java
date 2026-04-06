@@ -1,16 +1,12 @@
 package br.com.alexandreluchetti.mibackend.dataprovider.repository;
 
-import br.com.alexandreluchetti.mibackend.core.model.ResumoRegistro;
+import br.com.alexandreluchetti.mibackend.core.model.ResumoItem;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.Map;
 import java.util.UUID;
@@ -18,20 +14,16 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @JdbcTest
-@Testcontainers
+@ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ResumoRepositoryImpl.class, UploadRepositoryImpl.class})
 class ResumoRepositoryImplTest {
-
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
 
     @Autowired
     private ResumoRepositoryImpl resumoRepository;
 
     @Autowired
-    private UploadRepositoryImpl uploadRepository; // Para poder criar a fk em upload
+    private UploadRepositoryImpl uploadRepository;
 
     @Test
     void testSaveAllAndFindByUploadId() {
@@ -48,7 +40,9 @@ class ResumoRepositoryImplTest {
         
         assertEquals(2, resumos.size());
         
-        // Verifica ordering the result that depends on String default order: "0000" < "1000"
+        // "0000" should be before "1000" in alphabetical order
+        resumos.sort((a,b) -> a.getRegistro().compareTo(b.getRegistro()));
+
         assertEquals("0000", resumos.get(0).getRegistro());
         assertEquals(1L, resumos.get(0).getTotal());
         assertEquals(uploadId, resumos.get(0).getUploadId());

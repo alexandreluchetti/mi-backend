@@ -24,12 +24,6 @@ security:
     envio: "token-envio-secreto"
     consulta: "token-consulta-secreto"
 
-async:
-  processing:
-    core-pool-size: 2
-    max-pool-size: 4
-    queue-capacity: 100
-
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
