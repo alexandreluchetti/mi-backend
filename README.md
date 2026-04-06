@@ -1,112 +1,85 @@
 # mi-backend – Teste Técnico MaterImperium
 
-API REST em Java 21 + Spring Boot 3.4.4 para upload e processamento de arquivos. O projeto inclui segurança (Role-based access), banco de dados com migrações automáticas, cobertura rigorosa de testes conteinerizados e documentação interativa da API.
+API REST Reativa em **Java 21** + **Spring Boot 3.4.4** para upload e processamento de arquivos Sped-like. O projeto utiliza o **Project Reactor** para processamento não-bloqueante, segurança baseada em papéis (RBAC), banco de dados com migrações automáticas e cobertura de testes rigorosa.
 
 ---
 
-## Tecnologias e Arquitetura
+## 🚀 Tecnologias e Arquitetura
 
-O projeto foi construído em arquitetura limpa (**Clean Architecture**) pensando em leveza, performance em manipulação de grandes arquivos e facilidade para teste/deploy:
+O projeto foi construído seguindo os princípios da **Clean Architecture**, priorizando a separação de preocupações, performance em alta volumetria e baixo footprint de memória:
 
 | Tecnologia | Finalidade / Versão |
 |---|---|
 | **Java** | 21 (Amazon Corretto) |
-| **Spring Boot** | 3.4.4 (Web, Security, JDBC, Validation) |
+| **Spring Boot** | 3.4.4 (**WebFlux**, Security, JDBC, Validation) |
+| **Project Reactor** | Processamento assíncrono e reativo (`Mono`, `Flux`, `Schedulers`) |
 | **Banco de Dados** | PostgreSQL 16 |
 | **Migrações (DB)** | Flyway |
-| **Persistência leve** | Spring `JdbcClient` (sem JPA/Hibernate para menor overhead de memória e melhor controle) |
+| **Persistência leve** | Spring `JdbcClient` (Alternativa leve ao JPA/Hibernate) |
 | **Documentação API** | Swagger / OpenAPI 3 (`springdoc-openapi`) |
-| **Testes e Qualidade** | JUnit 5 + Testcontainers (PostgreSQL) + JaCoCo (>90% de cobertura mínima restrita no build) |
-| **Containerização** | Docker com arquitetura *multi-stage build* nativa |
+| **Testes** | JUnit 5 + Mockito + Testcontainers + JaCoCo (>90% de cobertura) |
+| **Containerização** | Docker (Multi-stage build) |
 
 ---
 
-## Pré-requisitos
+## 🛠️ Regras de Negócio e Validação
 
-Para rodar a aplicação imediatamente em um ambiente local isolado:
-- **Docker** e **Docker Compose**
+A aplicação impõe validações rigorosas antes de iniciar o processamento em background:
 
-*(Não é necessário ter o Java ou Maven instalados nativamente na sua máquina, pois todo o processo de compilação, pacotes e execução foi inteiramente encapsulado nas imagens).*
+1.  **Validação de Cabeçalho**:
+    - **Linha 1**: Deve obrigatoriamente iniciar com `|0000|017|` ou `|0000|006|`.
+    - **Linha 2**: Deve conter exatamente o valor `|0001|0|`.
+2.  **Processamento de Registros**:
+    - O sistema identifica o "Código do Registro" (primeiro elemento após o pipe opcional).
+    - Gera uma sumarização (contador) de todas as ocorrências por tipo de registro.
+3.  **Histórico e Isolamento**: 
+    - Cada upload gera um novo `UUID` único. 
+    - Os resumos são armazenados vinculados a esse ID, mantendo um histórico completo de todos os arquivos processados.
 
 ---
 
-## Como executar (Recomendado)
+## 📂 Recursos de Teste
 
-Disponibilizamos toda a infraestrutura pronta e já orquestrada. 
-Na raiz do projeto (onde está o arquivo `docker-compose.yml`), simplesmente execute:
+Disponibilizamos uma pasta `test_files/` na raiz do projeto com arquivos prontos para validar o comportamento do sistema:
+
+- `valid_017.txt` / `valid_006.txt`: Sucesso básico.
+- `complex_resumo.txt`: Múltiplos registros para validar a contagem do resumo.
+- `edge_cases.txt`: Casos especiais (espaços, sem pipe inicial, pipes duplos).
+- `whitespace_test.txt`: Garante que linhas em branco sejam ignoradas.
+- `invalid_*.txt`: Cenários de falha na validação de cabeçalho.
+
+---
+
+## 🏃 Como Executar (Docker Compose)
+
+Certifique-se de ter o **Docker** instalado. Na raiz do projeto, execute:
 
 ```bash
 docker-compose up -d --build
 ```
 
-O **Docker Compose** se encarregará de forma assíncrona de:
-1. Provisionar e subir o contêiner do **PostgreSQL** (`mi-backend-postgres`).
-2. Realizar o **build completo e automatizado** da aplicação backend partindo da imagem oficial do Amazon Corretto.
-3. Subir a **API** (`mi-backend-api`) e liberar as portas apenas **após** a saúde (*healthcheck*) do banco de dados estar 100% OK.
+A API estará disponível em `http://localhost:8080`.
 
-A aplicação vai expor a porta **8080** no seu locahost. As tabelas necessárias serão criadas automaticamente na inicialização com a migração do `Flyway` dentro da API.
-
-> **Nota para execução direta via fonte (opcional):**
-> Caso deseje subir o app diretamente via Host (necessita do Java 21 e Maven instalados), suba primeiro somente o DB usando `docker-compose up -d postgres` e rode o projeto com `./mvnw spring-boot:run`.
+### Endpoints Principais:
+- **POST** `/api/arquivos/upload`: Envio do arquivo (Multipart).
+- **GET** `/api/arquivos/{id}/progresso`: Consulta do status (`EM_PROCESSAMENTO`, `FINALIZADO_COM_ERROS`, `FINALIZADO_COM_SUCESSO`).
+- **GET** `/api/arquivos/{id}/resultado`: Retorna o JSON com o resumo das contagens (apenas após finalizado).
 
 ---
 
-## Documentação Interativa da API (Swagger)
+## 🔐 Autenticação e Segurança
 
-A API é auto-documentada integrando o visualizador de interface Swagger. Com a aplicação rodando, acesse em qualquer navegador:
+A API utiliza **Static Bearer Tokens** configurados via `application.yaml`:
 
-- **Swagger UI:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-- **OpenAPI JSON:** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
-
-Lá é possível validar detalhadamente o schema das rotas, simular autenticações via token, e enviar arquivos fisicamente pela própria tela web para testes ágeis de integração.
-
----
-
-## Autenticação / Segurança
-
-A API protege suas rotas com autenticação baseada em **Bearer Tokens** estáticos. Cada token concede um *Role* de acesso distinto pre-definido, reforçando a separação de controle (`application.yaml`):
-
-| Token Estático | Role de Segurança | Permissões Mapeadas |
+| Token | Role | Permissões |
 |---|---|---|
-| `token-envio-secreto` | **ENVIO** | Autorizado a Enviar Arquivos (`/upload`) + Ver Progresso (`/progresso`) |
-| `token-consulta-secreto` | **CONSULTA** | Autorizado a Ver Progresso (`/progresso`) + Ver Resumo Final (`/resultado`) |
-
-Se for testar por scripts externos de HTTP (`curl` ou Postman etc.), injete no cabeçalho: 
-`Authorization: Bearer <seu-token>`
+| `token-envio-secreto` | **ENVIO** | Upload e Consulta de Progresso |
+| `token-consulta-secreto` | **CONSULTA** | Consulta de Progresso e Resultado Final |
 
 ---
 
-## Testes Automatizados (Garantia de Cobertura)
+## 📊 Documentação e Qualidade
 
-O sistema de testes mescla um comportamento unitário somado a testes de Repositório/Integração através da biblioteca **Testcontainers**, que levanta uma instância isolada em um *Docker temporário* apenas para passar na esteira de integração validadando query real, e a descartando ao final do runner.
-
-Para ver os relatórios de execução e relatórios de métrica de cobertura:
-```bash
-./mvnw clean test
-```
-*(Se atente que na máquina Host isso também exigirá ter daemon de Docker ligado).*
-A execução gera um report de **JaCoCo** (`target/site/jacoco/index.html`) e **qualquer branch que falhe mais de 10% da cobertura de instruções é vetada do Build (Rule de Rate 90%)**.
-
----
-
-## Eficiência de Memória & Lógica
-
-### Regra Técnica de Domínio
-A API é impulsionada para digerir arquivos com um layout customizado. As requisições entram delimitadas por pipes (`|`), capturando a primeira string do fragmento de leitura como "Códigos do Registro". 
-
-Exemplo contido num arquivo `dados.txt`:
-```text
-|0000|017|EMPRESA VIRTUAL XYZ|...
-|0001|0|...
-|C170|1|ITEM FISCAL|...
-```
-O processamento assimila, processa concorrentemente e retorna, quando no estado de sucesso (Status 200 OK da última rota), a sumarização:
-- `0000` → 1 Ocorrência Processada
-- `0001` → 1 Ocorrência Processada
-- `C170` → 1 Ocorrência Processada
-
-### Processamento com Footprint Baixo (Leitura Transparente)
-Para evitar corrupção por picos de excesso de heap (*OutOfMemoryError*), o Controller despacha de forma assíncrona o stream para Workers de background pool (`ThreadPoolTaskExecutor`), rodando via `spring-boot-async`.
-
-O motor de digestão roda um algoritmo que faz proxy de stream, baseado em `BufferedReader.lines()`. A rotina **não armazena nem mapeia as seções massivas na memória**.  Ele engole linhas, mapeia os buffers e descarta do scope as strings passadas.
-A arquitetura atesta suporte contínuo para arquivos imensos na margem dos **Gigabytes** usando apenas **poucos Megabytes em sua pegada de RAM.**
+- **Swagger UI**: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- **Testes**: Execute `./mvnw clean test` para rodar a suíte completa com **Testcontainers**.
+- **Cobertura**: O relatório reside em `target/site/jacoco/index.html` após os testes. A build falha se a cobertura for inferior a **90%**.
