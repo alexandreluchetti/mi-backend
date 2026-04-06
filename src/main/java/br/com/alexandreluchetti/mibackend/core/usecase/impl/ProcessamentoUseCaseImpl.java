@@ -41,7 +41,6 @@ public class ProcessamentoUseCaseImpl implements ProcessamentoUseCase {
             try (BufferedReader reader = Files.newBufferedReader(arquivo, StandardCharsets.UTF_8)) {
                 Map<String, Long> contagens = new LinkedHashMap<>();
 
-                // Processa linha por linha
                 reader.lines().forEach(linha -> {
                     String codigoRegistro = extrairCodigoRegistro(linha);
                     if (codigoRegistro != null && !codigoRegistro.isBlank()) {
