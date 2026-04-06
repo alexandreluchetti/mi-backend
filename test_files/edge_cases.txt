@@ -1,0 +1,9 @@
+|0000|017|
+|0001|0|
+0002|Dado sem pipe inicial
+  0002|Espaço em branco inicial
+|0003 |Espaço no codigo
+|0004|Sem pipe final
+|0005||Dois pipes
+|0006|Finalizado
+|0006|Repetido
